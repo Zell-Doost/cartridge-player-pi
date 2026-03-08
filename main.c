@@ -10,9 +10,8 @@ int main(void)
 {
     bool isRead = false;
     CPU cpu;
-    Mem mem;
     memset(&cpu, 0, sizeof(cpu));
-    memset(&mem, 0, sizeof(mem));
+    CMem cmem = init_cpu_mem();
 
     for (;;) {
         char command;
@@ -64,12 +63,12 @@ int main(void)
                 break;
             case 'm':
                 if (isRead) 
-                    printf("%d\n", mem.all[num1]);
+                    printf("%d\n", cmem.all[num1]);
                 else 
-                    mem.all[num1] = num2;
+                    cmem.all[num1] = num2;
                 break;
             case 'n':
-                run_instruction(&cpu, &mem);               
+                run_instruction(&cpu, &cmem);               
                 break;
             case 'q':
                 return 0;

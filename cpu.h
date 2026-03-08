@@ -4,7 +4,13 @@
 
 typedef struct {
     uint8_t all[65536];
-} Mem;
+    uint8_t* ram;
+    uint8_t* ppuReg;
+    uint8_t* apuReg;
+    uint8_t* ioReg;
+    uint8_t* cart;
+} CMem;
+
 
 typedef struct {
     uint8_t a;
@@ -15,7 +21,7 @@ typedef struct {
     uint16_t c;
 } CPU;
 
-void run_instruction(CPU* cpu, Mem* mem);
+void run_instruction(CPU* cpu, CMem* cmem);
 
 #define INC_PC cpu->c++
 
@@ -38,50 +44,50 @@ void run_instruction(CPU* cpu, Mem* mem);
 
 
 #define ABS_ADDR ({                         \
-        uint8_t lo = mem->all[++cpu->c];    \
-        uint16_t hi = mem->all[++cpu->c];   \
+        uint8_t lo = cmem->all[++cpu->c];    \
+        uint16_t hi = cmem->all[++cpu->c];   \
         lo | (hi << 8);                     \
         })
 #define ABS_X_ADDR ({                        \
-        uint8_t lo = mem->all[++cpu->c];    \
-        uint16_t hi = mem->all[++cpu->c];   \
+        uint8_t lo = cmem->all[++cpu->c];    \
+        uint16_t hi = cmem->all[++cpu->c];   \
         ((lo | (hi << 8)) + cpu->x) & 0xFFFF;\
         })
 #define ABS_Y_ADDR ({                        \
-        uint8_t lo = mem->all[++cpu->c];    \
-        uint16_t hi = mem->all[++cpu->c];   \
+        uint8_t lo = cmem->all[++cpu->c];    \
+        uint16_t hi = cmem->all[++cpu->c];   \
         ((lo | (hi << 8)) + cpu->y) & 0xFFFF;\
         })
 
 #define X_IND_ADDR ({                                                   \
-        uint8_t lo = mem->all[0xFF & (mem->all[++cpu->c] + cpu->x)];    \
-        uint16_t hi = mem->all[0xFF & (mem->all[cpu->c] + cpu->x + 1)]; \
+        uint8_t lo = cmem->all[0xFF & (cmem->all[++cpu->c] + cpu->x)];    \
+        uint16_t hi = cmem->all[0xFF & (cmem->all[cpu->c] + cpu->x + 1)]; \
         lo | (hi << 8);                                           \
         })
 #define IND_Y_ADDR ({                                               \
-        uint8_t lo = mem->all[0xFF & (mem->all[++cpu->c])];        \
-        uint16_t hi = mem->all[0xFF & (mem->all[cpu->c] + 1)];     \
+        uint8_t lo = cmem->all[0xFF & (cmem->all[++cpu->c])];        \
+        uint16_t hi = cmem->all[0xFF & (cmem->all[cpu->c] + 1)];     \
         ((lo | (hi << 8)) + cpu->y) & 0xFFFF;                       \
         })
 #define REL_JMP ({                                \
-    int8_t offset = mem->all[cpu->c];           \
+    int8_t offset = cmem->all[cpu->c];           \
     cpu->c += offset;                             \
 })
 
 
 
-#define CUR_STK mem->all[cpu->s + 0x100]
+#define CUR_STK cmem->all[cpu->s + 0x100]
 #define ACC_CON cpu->a
 #define STS_CON cpu->p
-#define IMMEDIATE mem->all[++cpu->c] 
-#define ZPG_CON mem->all[mem->all[++cpu->c]]
-#define ZPG_X_CON mem->all[(mem->all[++cpu->c] + cpu->x) & 0x00FF]
-#define ZPG_Y_CON mem->all[(mem->all[++cpu->c] + cpu->y) & 0x00FF]
-#define ABS_CON mem->all[ABS_ADDR]
-#define ABS_X_CON mem->all[ABS_X_ADDR]
-#define ABS_Y_CON mem->all[ABS_Y_ADDR]
-#define X_IND_CON mem->all[X_IND_ADDR]
-#define IND_Y_CON mem->all[IND_Y_ADDR]
+#define IMMEDIATE cmem->all[++cpu->c] 
+#define ZPG_CON cmem->all[cmem->all[++cpu->c]]
+#define ZPG_X_CON cmem->all[(cmem->all[++cpu->c] + cpu->x) & 0x00FF]
+#define ZPG_Y_CON cmem->all[(cmem->all[++cpu->c] + cpu->y) & 0x00FF]
+#define ABS_CON cmem->all[ABS_ADDR]
+#define ABS_X_CON cmem->all[ABS_X_ADDR]
+#define ABS_Y_CON cmem->all[ABS_Y_ADDR]
+#define X_IND_CON cmem->all[X_IND_ADDR]
+#define IND_Y_CON cmem->all[IND_Y_ADDR]
 #define IND_CON
 
 #define ACC_REG &(ACC_CON)
@@ -107,7 +113,20 @@ void run_instruction(CPU* cpu, Mem* mem);
 #define BVS_COND cpu->p & 0x40
 
 //Subtract 1 in BRK_VECT to account for PC_INC after all instructions.
-#define BRK_VECT (mem->all[0xFFFE] | ((uint16_t)mem->all[0xFFFF] << 8)) - 1
+#define BRK_VECT (cmem->all[0xFFFE] | ((uint16_t)cmem->all[0xFFFF] << 8)) - 1
+
+CMem init_cpu_mem()
+{
+    CMem cmem;
+    memset(&cmem, 0, sizeof(cmem));
+    cmem->ram = cmem->all + 0x0000;
+    cmem->ppuReg = cmem->all + 0x2000;
+    cmem->apuReg = cmem->all + 0x4000;
+    cmem->ioReg = cmem->all + 0x4016;
+    cmem->cart = cmem->all + 0x4020;
+    return cmem;
+
+}
 
 //cpu instruction function declarations
 //void brk(CPU* cpu);
